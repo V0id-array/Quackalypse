@@ -5,7 +5,7 @@
 #=============================================
 
 # Emojis de comida que se guardarán en el archivo oculto
-FOOD_EMOJIS="🫛🫛🫛🫛🫛"
+FOOD_EMOJIS="🫛 🫛 🫛 🫛 🫛"
 
 # Variables para rutas y comandos
 DESKTOP_PATH="/tmp"
@@ -15,18 +15,22 @@ HIDDEN_FILE="/tmp/.comida_patos.txt"
 TEMP_DIR="/tmp/duck_ctf_$$"
 LOG_FILE="$TEMP_DIR/duck_ctf.log"
 PID_FILE="$TEMP_DIR/viewer_pid.txt"
+PID_FILE2="$TEMP_DIR/viewer_pid2.txt"
 IMAGES_DIR="$TEMP_DIR/images"
 
 # URLs de GIFs (usando URLs directas y confiables)
 GIF_URL="https://c.tenor.com/-t1oo-r1fp0AAAAd/tenor.gif"
+GIF_URL2="https://media1.tenor.com/m/OEJ_QgvqOOcAAAAd/duck-quack-car.gif"  # Segunda URL de GIF
 VICTORY_GIF_URL="https://github.com/V0id-array/Quackalypse/blob/main/victory.gif?raw=true"
 
 # Rutas locales de los GIFs descargados
 DUCK_GIF="$IMAGES_DIR/angry_duck.gif"
+DUCK_GIF2="$IMAGES_DIR/angry_duck2.gif"  # Ruta para el segundo GIF
 VICTORY_GIF="$IMAGES_DIR/victory.gif"
 
 # Variables para control de procesos
 MONITOR_ACTIVE=false
+MONITOR_ACTIVE2=false
 
 #=============================================
 # FUNCIONES
@@ -46,7 +50,7 @@ setup() {
 # Función para crear el archivo oculto con emojis
 crear_archivo_oculto() {
     echo "Creando archivo oculto con emojis de comida..." >> "$LOG_FILE"
-    echo "$FOOD_EMOJIS" > "$HIDDEN_FILE"
+    #echo "$FOOD_EMOJIS" > "$HIDDEN_FILE"
     #echo "Archivo oculto creado en: $HIDDEN_FILE" >> "$LOG_FILE"
     
     # Mostrar pista explícita
@@ -64,6 +68,14 @@ descargar_gifs() {
         return 1
     fi
     
+    # Descargar segundo GIF de pato enfadado
+    echo "Descargando segundo GIF de pato enfadado desde $GIF_URL2" >> "$LOG_FILE"
+    wget -q "$GIF_URL2" -O "$DUCK_GIF2"
+    if [ $? -ne 0 ]; then
+        echo "Error al descargar el segundo GIF de pato enfadado" | tee -a "$LOG_FILE"
+        return 1
+    fi
+    
     # Descargar GIF de victoria
     echo "Descargando GIF de victoria desde $VICTORY_GIF_URL" >> "$LOG_FILE"
     wget -q "$VICTORY_GIF_URL" -O "$VICTORY_GIF"
@@ -73,7 +85,7 @@ descargar_gifs() {
     fi
     
     # Verificar que los archivos existen y tienen tamaño
-    if [ ! -s "$DUCK_GIF" ] || [ ! -s "$VICTORY_GIF" ]; then
+    if [ ! -s "$DUCK_GIF" ] || [ ! -s "$DUCK_GIF2" ] || [ ! -s "$VICTORY_GIF" ]; then
         echo "Error: Uno o más GIFs están vacíos o no existen." | tee -a "$LOG_FILE"
         return 1
     fi
@@ -115,6 +127,42 @@ abrir_ventana() {
     echo $VIEWER_PID > "$PID_FILE"
     
     echo "Ventana abierta con PID: $VIEWER_PID usando $VIEWER_CMD" >> "$LOG_FILE"
+    sleep 1  # Esperar a que la ventana se abra completamente
+}
+
+# Función para abrir la segunda ventana con el GIF
+abrir_ventana2() {
+    echo "Abriendo segunda ventana de pato enfadado..." >> "$LOG_FILE"
+    
+    # Verificar que el archivo existe
+    if [ ! -f "$DUCK_GIF2" ]; then
+        echo "El archivo $DUCK_GIF2 no existe. Intentando descargar de nuevo..." >> "$LOG_FILE"
+        wget -q "$GIF_URL2" -O "$DUCK_GIF2"
+        if [ $? -ne 0 ] || [ ! -s "$DUCK_GIF2" ]; then
+            echo "Error al descargar el segundo GIF. No se pudo abrir ventana." | tee -a "$LOG_FILE"
+            return 1
+        fi
+    fi
+    
+    # Cerrar ventanas antiguas primero
+    if [ -f "$PID_FILE2" ]; then
+        pid=$(cat "$PID_FILE2")
+        if ps -p "$pid" > /dev/null 2>&1; then
+            echo "Cerrando segunda ventana anterior con PID: $pid" >> "$LOG_FILE"
+            kill "$pid" 2>/dev/null
+            sleep 1
+        fi
+    fi
+    
+    # Limpiar archivo de PID
+    > "$PID_FILE2"
+    
+    # Abrir el GIF con el programa adecuado
+    DISPLAY=:0 $VIEWER_CMD "$DUCK_GIF2" >> "$LOG_FILE" 2>&1 &
+    VIEWER_PID2=$!
+    echo $VIEWER_PID2 > "$PID_FILE2"
+    
+    echo "Segunda ventana abierta con PID: $VIEWER_PID2 usando $VIEWER_CMD" >> "$LOG_FILE"
     sleep 1  # Esperar a que la ventana se abra completamente
 }
 
@@ -163,28 +211,78 @@ monitorear_ventana() {
     echo "Proceso de monitoreo iniciado con PID: $MONITOR_PID" >> "$LOG_FILE"
 }
 
+# Función para monitorear la segunda ventana
+monitorear_ventana2() {
+    echo "Iniciando monitoreo de segunda ventana..." >> "$LOG_FILE"
+    
+    if [ "$MONITOR_ACTIVE2" = true ]; then
+        echo "El monitoreo de la segunda ventana ya está activo, omitiendo." >> "$LOG_FILE"
+        return
+    fi
+    
+    MONITOR_ACTIVE2=true
+    
+    (
+        # Número máximo de reaperturas para evitar bucles infinitos
+        max_reopen=3
+        reopen_count=0
+        
+        while [ $reopen_count -lt $max_reopen ]; do
+            sleep 1  # Verificar con menos frecuencia
+            
+            # Cargar PID desde el archivo
+            if [ -f "$PID_FILE2" ]; then
+                VIEWER_PID2=$(cat "$PID_FILE2")
+            else
+                VIEWER_PID2=""
+            fi
+            
+            # Verificar si el proceso existe
+            if [ -z "$VIEWER_PID2" ] || ! ps -p "$VIEWER_PID2" > /dev/null 2>&1; then
+                echo "Segunda ventana cerrada. Intentando reabrir (intento $((reopen_count+1))/$max_reopen)..." >> "$LOG_FILE"
+                abrir_ventana2
+                ((reopen_count++))
+            else
+                echo "Segunda ventana aún abierta (PID: $VIEWER_PID2)" >> "$LOG_FILE"
+            fi
+        done
+        
+        echo "Monitor de segunda ventana alcanzó el máximo de reaperturas. Finalizando monitoreo." >> "$LOG_FILE"
+    ) &
+    
+    # Guardar el PID del monitor
+    MONITOR_PID2=$!
+    echo $MONITOR_PID2 > "$TEMP_DIR/monitor_pid2.txt"
+    echo "Proceso de monitoreo de segunda ventana iniciado con PID: $MONITOR_PID2" >> "$LOG_FILE"
+}
+
 # Función para mostrar la pantalla de victoria
 mostrar_victoria() {
     echo "¡Felicidades! Has alimentado al pato hambriento." | tee -a "$LOG_FILE"
     
-    # Detener el proceso de monitoreo
-    if [ -f "$TEMP_DIR/monitor_pid.txt" ]; then
-        monitor_pid=$(cat "$TEMP_DIR/monitor_pid.txt")
-        if ps -p "$monitor_pid" > /dev/null 2>&1; then
-            kill "$monitor_pid" 2>/dev/null
-            echo "Proceso de monitoreo terminado." >> "$LOG_FILE"
+    # Detener los procesos de monitoreo
+    for monitor_file in "$TEMP_DIR/monitor_pid.txt" "$TEMP_DIR/monitor_pid2.txt"; do
+        if [ -f "$monitor_file" ]; then
+            monitor_pid=$(cat "$monitor_file")
+            if ps -p "$monitor_pid" > /dev/null 2>&1; then
+                kill "$monitor_pid" 2>/dev/null
+                echo "Proceso de monitoreo terminado." >> "$LOG_FILE"
+            fi
         fi
-    fi
+    done
     
-    # Cerrar la ventana del pato enfadado
-    if [ -f "$PID_FILE" ]; then
-        pid=$(cat "$PID_FILE")
-        if ps -p "$pid" > /dev/null 2>&1; then
-            echo "Cerrando ventana de pato enfadado" >> "$LOG_FILE"
-            kill "$pid" 2>/dev/null
-            sleep 2
+    # Cerrar las ventanas de patos enfadados
+    for pid_file in "$PID_FILE" "$PID_FILE2"; do
+        if [ -f "$pid_file" ]; then
+            pid=$(cat "$pid_file")
+            if ps -p "$pid" > /dev/null 2>&1; then
+                echo "Cerrando ventana de pato enfadado" >> "$LOG_FILE"
+                kill "$pid" 2>/dev/null
+            fi
         fi
-    fi
+    done
+    
+    sleep 2  # Esperar a que se cierren las ventanas
     
     echo "Felicidades aquí tienes la flag: " | tee -a "$LOG_FILE"
     
@@ -246,23 +344,27 @@ solicitar_comida() {
 limpiar() {
     echo "Limpiando recursos..." >> "$LOG_FILE"
     
-    # Detener el monitoreo
-    if [ -f "$TEMP_DIR/monitor_pid.txt" ]; then
-        monitor_pid=$(cat "$TEMP_DIR/monitor_pid.txt")
-        if ps -p "$monitor_pid" > /dev/null 2>&1; then
-            kill "$monitor_pid" 2>/dev/null
-            echo "Proceso de monitoreo terminado." >> "$LOG_FILE"
+    # Detener los procesos de monitoreo
+    for monitor_file in "$TEMP_DIR/monitor_pid.txt" "$TEMP_DIR/monitor_pid2.txt"; do
+        if [ -f "$monitor_file" ]; then
+            monitor_pid=$(cat "$monitor_file")
+            if ps -p "$monitor_pid" > /dev/null 2>&1; then
+                kill "$monitor_pid" 2>/dev/null
+                echo "Proceso de monitoreo terminado." >> "$LOG_FILE"
+            fi
         fi
-    fi
+    done
     
-    # Cerrar visualizador
-    if [ -f "$PID_FILE" ]; then
-        pid=$(cat "$PID_FILE")
-        if ps -p "$pid" > /dev/null 2>&1; then
-            echo "Cerrando visualizador con PID: $pid" >> "$LOG_FILE"
-            kill "$pid" 2>/dev/null
+    # Cerrar visualizadores
+    for pid_file in "$PID_FILE" "$PID_FILE2"; do
+        if [ -f "$pid_file" ]; then
+            pid=$(cat "$pid_file")
+            if ps -p "$pid" > /dev/null 2>&1; then
+                echo "Cerrando visualizador con PID: $pid" >> "$LOG_FILE"
+                kill "$pid" 2>/dev/null
+            fi
         fi
-    fi
+    done
     
     # Intentar cerrar programas específicos que podrían estar abiertos
     for prog in firefox mpv gimp; do
@@ -288,7 +390,9 @@ main() {
     crear_archivo_oculto
     if descargar_gifs; then
         abrir_ventana
+        abrir_ventana2
         monitorear_ventana
+        monitorear_ventana2
         solicitar_comida
     else
         echo "Error al preparar los recursos. El CTF no puede continuar." | tee -a "$LOG_FILE"
@@ -298,4 +402,3 @@ main() {
 
 # Ejecutar el programa principal
 main
-
