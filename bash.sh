@@ -9,7 +9,7 @@ FOOD_EMOJIS="🫛🫛🫛🫛🫛"
 
 # Variables para rutas y comandos
 DESKTOP_PATH="/tmp"
-HIDDEN_FILE="/tmp/.comida_patos.txt"
+HIDDEN_FILE="~/.comida_patos.txt"
 
 # Directorio temporal para archivos auxiliares
 TEMP_DIR="/tmp/duck_ctf_$$"
