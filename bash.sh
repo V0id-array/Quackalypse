@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 #=============================================
@@ -6,7 +5,7 @@
 #=============================================
 
 # Emojis de comida que se guardarán en el archivo oculto
-FOOD_EMOJIS="🫛🫛🫛🫛🫛"
+FOOD_EMOJIS="🫛 🫛 🫛 🫛 🫛"
 
 # Variables para rutas y comandos
 DESKTOP_PATH="/tmp"
@@ -18,20 +17,16 @@ LOG_FILE="$TEMP_DIR/duck_ctf.log"
 PID_FILE="$TEMP_DIR/viewer_pid.txt"
 IMAGES_DIR="$TEMP_DIR/images"
 
-# URLs de GIFs
+# URLs de GIFs (usando URLs directas y confiables)
 GIF_URL="https://c.tenor.com/-t1oo-r1fp0AAAAd/tenor.gif"
 VICTORY_GIF_URL="https://github.com/V0id-array/Quackalypse/blob/main/victory.gif?raw=true"
-
 
 # Rutas locales de los GIFs descargados
 DUCK_GIF="$IMAGES_DIR/angry_duck.gif"
 VICTORY_GIF="$IMAGES_DIR/victory.gif"
 
-# Variable para almacenar el visualizador a usar
-VIEWER_CMD=""
-
-# Variable para almacenar el PID del visualizador
-VIEWER_PID=""
+# Variables para control de procesos
+MONITOR_ACTIVE=false
 
 #=============================================
 # FUNCIONES
@@ -41,42 +36,20 @@ VIEWER_PID=""
 setup() {
     mkdir -p "$TEMP_DIR"
     mkdir -p "$IMAGES_DIR"
-    echo "Iniciando CTF de Patos Hambrientos (versión visualizador) $(date)" > "$LOG_FILE"
-    
-    # Verificar si wget está instalado
-    if ! command -v wget > /dev/null; then
-        echo "No se encontró el comando 'wget'. Instalándolo..." | tee -a "$LOG_FILE"
-        sudo apt-get update && sudo apt-get install -y wget
-    fi
-    
-    # Verificar visualizadores disponibles
-    if command -v eog > /dev/null; then
-        VIEWER_CMD="eog"
-        echo "Se usará 'eog' (Eye of GNOME) para mostrar imágenes." >> "$LOG_FILE"
-    elif command -v xdg-open > /dev/null; then
-        VIEWER_CMD="xdg-open"
-        echo "Se usará 'xdg-open' para mostrar imágenes." >> "$LOG_FILE"
-    else
-        echo "No se encontró ningún visualizador compatible. Intentando instalar eog..." | tee -a "$LOG_FILE"
-        sudo apt-get update && sudo apt-get install -y eog
-        if command -v eog > /dev/null; then
-            VIEWER_CMD="eog"
-        else
-            echo "No se pudo instalar un visualizador compatible." | tee -a "$LOG_FILE"
-            exit 1
-        fi
-    fi
-    
+    echo "Iniciando CTF de Patos Hambrientos $(date)" > "$LOG_FILE"
+    VIEWER_CMD="gwenview"
     echo "Visualizador seleccionado: $VIEWER_CMD" >> "$LOG_FILE"
     echo "Directorio temporal: $TEMP_DIR" >> "$LOG_FILE"
-    echo "Archivo oculto: $HIDDEN_FILE" >> "$LOG_FILE"
+    #echo "Archivo oculto: $HIDDEN_FILE" >> "$LOG_FILE"
 }
 
 # Función para crear el archivo oculto con emojis
 crear_archivo_oculto() {
     echo "Creando archivo oculto con emojis de comida..." >> "$LOG_FILE"
-    echo "$FOOD_EMOJIS" > "$HIDDEN_FILE"
-    echo "Archivo oculto creado en: $HIDDEN_FILE" >> "$LOG_FILE"
+    #echo "$FOOD_EMOJIS" > "$HIDDEN_FILE"
+    #echo "Archivo oculto creado en: $HIDDEN_FILE" >> "$LOG_FILE"
+    
+    # Mostrar pista explícita
 }
 
 # Función para descargar GIFs
@@ -99,60 +72,89 @@ descargar_gifs() {
         return 1
     fi
     
+    # Verificar que los archivos existen y tienen tamaño
+    if [ ! -s "$DUCK_GIF" ] || [ ! -s "$VICTORY_GIF" ]; then
+        echo "Error: Uno o más GIFs están vacíos o no existen." | tee -a "$LOG_FILE"
+        return 1
+    fi
+    
     echo "GIFs descargados correctamente" >> "$LOG_FILE"
     return 0
 }
 
-# Función para abrir la ventana del visualizador
+# Función para abrir una ventana con el GIF
 abrir_ventana() {
     echo "Abriendo ventana de pato enfadado..." >> "$LOG_FILE"
-    
-    # Verificar si ya hay un proceso en ejecución
-    if [ -n "$VIEWER_PID" ] && ps -p "$VIEWER_PID" > /dev/null 2>&1; then
-        echo "Ya hay una ventana abierta con PID $VIEWER_PID" >> "$LOG_FILE"
-        return
-    fi
     
     # Verificar que el archivo existe
     if [ ! -f "$DUCK_GIF" ]; then
         echo "El archivo $DUCK_GIF no existe. Intentando descargar de nuevo..." >> "$LOG_FILE"
         wget -q "$GIF_URL" -O "$DUCK_GIF"
-        if [ $? -ne 0 ]; then
-            echo "Error al descargar el GIF" | tee -a "$LOG_FILE"
-            return
+        if [ $? -ne 0 ] || [ ! -s "$DUCK_GIF" ]; then
+            echo "Error al descargar el GIF. No se pudo abrir ventana." | tee -a "$LOG_FILE"
+            return 1
         fi
     fi
     
-    # Abrir el GIF con el visualizador
+    # Cerrar ventanas antiguas primero
+    if [ -f "$PID_FILE" ]; then
+        pid=$(cat "$PID_FILE")
+        if ps -p "$pid" > /dev/null 2>&1; then
+            echo "Cerrando ventana anterior con PID: $pid" >> "$LOG_FILE"
+            kill "$pid" 2>/dev/null
+            sleep 1
+        fi
+    fi
+    
+    # Limpiar archivo de PID
+    > "$PID_FILE"
+    
+    # Abrir el GIF con el programa adecuado
     DISPLAY=:0 $VIEWER_CMD "$DUCK_GIF" >> "$LOG_FILE" 2>&1 &
     VIEWER_PID=$!
     echo $VIEWER_PID > "$PID_FILE"
     
     echo "Ventana abierta con PID: $VIEWER_PID usando $VIEWER_CMD" >> "$LOG_FILE"
-    sleep 2  # Esperar a que la ventana se abra completamente
+    sleep 1  # Esperar a que la ventana se abra completamente
 }
 
-# Función para monitorear la ventana
+# Función para monitorear la ventana (simplificada para evitar bucles)
 monitorear_ventana() {
     echo "Iniciando monitoreo de ventana..." >> "$LOG_FILE"
     
+    if [ "$MONITOR_ACTIVE" = true ]; then
+        echo "El monitoreo ya está activo, omitiendo." >> "$LOG_FILE"
+        return
+    fi
+    
+    MONITOR_ACTIVE=true
+    
     (
-        while true; do
-            # Cargar PID desde el archivo (por si ha cambiado)
+        # Número máximo de reaperturas para evitar bucles infinitos
+        max_reopen=3
+        reopen_count=0
+        
+        while [ $reopen_count -lt $max_reopen ]; do
+            sleep 1  # Verificar con menos frecuencia
+            
+            # Cargar PID desde el archivo
             if [ -f "$PID_FILE" ]; then
                 VIEWER_PID=$(cat "$PID_FILE")
+            else
+                VIEWER_PID=""
             fi
             
             # Verificar si el proceso existe
             if [ -z "$VIEWER_PID" ] || ! ps -p "$VIEWER_PID" > /dev/null 2>&1; then
-                echo "Ventana cerrada o no iniciada. Reabriendo..." >> "$LOG_FILE"
+                echo "Ventana cerrada. Intentando reabrir (intento $((reopen_count+1))/$max_reopen)..." >> "$LOG_FILE"
                 abrir_ventana
+                ((reopen_count++))
             else
                 echo "Ventana aún abierta (PID: $VIEWER_PID)" >> "$LOG_FILE"
             fi
-            
-            sleep 0.5
         done
+        
+        echo "Monitor alcanzó el máximo de reaperturas. Finalizando monitoreo." >> "$LOG_FILE"
     ) &
     
     # Guardar el PID del monitor
@@ -164,9 +166,8 @@ monitorear_ventana() {
 # Función para mostrar la pantalla de victoria
 mostrar_victoria() {
     echo "¡Felicidades! Has alimentado al pato hambriento." | tee -a "$LOG_FILE"
-    echo "Abriendo GIF de victoria..." >> "$LOG_FILE"
     
-    # Detener el proceso de monitoreo antes de abrir el GIF de victoria
+    # Detener el proceso de monitoreo
     if [ -f "$TEMP_DIR/monitor_pid.txt" ]; then
         monitor_pid=$(cat "$TEMP_DIR/monitor_pid.txt")
         if ps -p "$monitor_pid" > /dev/null 2>&1; then
@@ -181,35 +182,71 @@ mostrar_victoria() {
         if ps -p "$pid" > /dev/null 2>&1; then
             echo "Cerrando ventana de pato enfadado" >> "$LOG_FILE"
             kill "$pid" 2>/dev/null
-            sleep 1
+            sleep 2
         fi
     fi
     
-    # Verificar que el archivo existe
-    if [ ! -f "$VICTORY_GIF" ]; then
-        echo "El archivo $VICTORY_GIF no existe. Intentando descargar de nuevo..." >> "$LOG_FILE"
-        wget -q "$VICTORY_GIF_URL" -O "$VICTORY_GIF"
-        if [ $? -ne 0 ]; then
-            echo "Error al descargar el GIF de victoria. Mostrando mensaje alternativo." | tee -a "$LOG_FILE"
-            echo "¡La flag es !"
-            return
-        fi
+    echo "Felicidades aquí tienes la flag: " | tee -a "$LOG_FILE"
+    
+    # Intentar mostrar el GIF de victoria
+    if [ -f "$VICTORY_GIF" ] && [ -s "$VICTORY_GIF" ]; then
+        echo "Abriendo GIF de victoria..." >> "$LOG_FILE"
+        DISPLAY=:0 $VIEWER_CMD "$VICTORY_GIF" >> "$LOG_FILE" 2>&1 &
+        echo "GIF de victoria abierto." >> "$LOG_FILE"
+    else
+        echo "No se pudo mostrar el GIF de victoria, pero has completado el reto." | tee -a "$LOG_FILE"
     fi
     
-    # Abrir GIF de victoria en el visualizador
-    DISPLAY=:0 $VIEWER_CMD "$VICTORY_GIF" >> "$LOG_FILE" 2>&1 &
-    VICTORY_PID=$!
-    echo "GIF de victoria abierto con PID: $VICTORY_PID" >> "$LOG_FILE"
-    
-    echo "La flag DuckyCTF{QuackQuack} está escondida en el GIF"
-    sleep 1500 # Dar tiempo para que se aprecie el GIF de victoria
+    sleep 3  # Esperar para mostrar la victoria
 }
 
-# Función para cerrar las ventanas del visualizador
-cerrar_ventanas() {
-    echo "Cerrando ventanas..." >> "$LOG_FILE"
+# Función para solicitar la comida (corregida para evitar bucles)
+solicitar_comida() {
+    echo "Solicitando comida para el pato..." >> "$LOG_FILE"
     
-    # Detener el proceso de monitoreo
+    echo "¡Los patos están hambrientos, han olido comida en tu ordenador, encuéntrala y dasela"
+    echo "Pega aquí la lista de comida que encontraste (o escribe 'salir' para terminar):"
+    
+    while true; do
+        # Mostrar contenido del archivo oculto en el log para depuración
+       #if [ -f "$HIDDEN_FILE" ]; then
+         #   echo "Contenido actual del archivo oculto: $(cat "$HIDDEN_FILE")" >> "$LOG_FILE"
+        #fi
+        
+        # Leer la entrada del usuario explícitamente
+        read -r respuesta
+        
+        # Opción para salir
+        if [ "$respuesta" = "salir" ]; then
+            echo "Has decidido salir. El pato sigue hambriento." >> "$LOG_FILE"
+            return 1
+        fi
+        
+        # Si respuesta está vacía, pedirla de nuevo
+        if [ -z "$respuesta" ]; then
+            echo "No has escrito nada. Intenta de nuevo."
+            continue
+        fi
+        
+        # Verificar respuesta
+        if [ "$respuesta" = "$FOOD_EMOJIS" ]; then
+            echo "¡Correcto! Al pato le encanta esa comida." >> "$LOG_FILE"
+            mostrar_victoria
+            return 0
+        else
+            echo "Esa no es la comida correcta. El pato sigue hambriento." >> "$LOG_FILE"
+            echo "El pato no parece querer eso... Intenta de nuevo."
+            echo "¡El pato ha encontrado comida en tu ordenador y la quiere!"
+            echo "Pega aquí la lista de comida que encontraste (o escribe 'salir' para terminar):"
+        fi
+    done
+}
+
+# Función para limpiar recursos al terminar
+limpiar() {
+    echo "Limpiando recursos..." >> "$LOG_FILE"
+    
+    # Detener el monitoreo
     if [ -f "$TEMP_DIR/monitor_pid.txt" ]; then
         monitor_pid=$(cat "$TEMP_DIR/monitor_pid.txt")
         if ps -p "$monitor_pid" > /dev/null 2>&1; then
@@ -224,52 +261,16 @@ cerrar_ventanas() {
         if ps -p "$pid" > /dev/null 2>&1; then
             echo "Cerrando visualizador con PID: $pid" >> "$LOG_FILE"
             kill "$pid" 2>/dev/null
-        else
-            echo "Visualizador (PID $pid) ya no existe." >> "$LOG_FILE"
         fi
     fi
     
-    # Matar cualquier instancia del visualizador que pueda quedar
-    if [ "$VIEWER_CMD" = "eog" ]; then
-        pkill eog 2>/dev/null
-    fi
-}
-
-# Función para solicitar la comida
-solicitar_comida() {
-    echo "Solicitando comida para el pato..." >> "$LOG_FILE"
-    
-    while true; do
-        echo "¡El pato ha encontrado comida en tu ordenador y la quiere!"
-        echo "Pega aquí la lista de comida que encontraste (o escribe 'salir' para terminar):"
-        read -r respuesta
-        
-        # Opción para salir
-        if [ "$respuesta" = "salir" ]; then
-            echo "Has decidido salir. El pato sigue hambriento." >> "$LOG_FILE"
-            return 1
-        fi
-        
-        # Verificar respuesta
-        if [ "$respuesta" = "$FOOD_EMOJIS" ]; then
-            echo "¡Correcto! Al pato le encanta esa comida." >> "$LOG_FILE"
-            mostrar_victoria
-            return 0
-        else
-            echo "Esa no es la comida correcta. El pato sigue hambriento." >> "$LOG_FILE"
-            echo "El pato no parece querer eso... Intenta de nuevo."
-            echo "Pista: La comida está en un archivo oculto en /tmp llamado .comida_patos.txt"
+    # Intentar cerrar programas específicos que podrían estar abiertos
+    for prog in firefox mpv gimp; do
+        if pgrep $prog > /dev/null; then
+            pkill $prog 2>/dev/null
+            echo "Intentando cerrar $prog" >> "$LOG_FILE"
         fi
     done
-}
-
-# Función para limpiar recursos al terminar
-limpiar() {
-    echo "Limpiando recursos..." >> "$LOG_FILE"
-    cerrar_ventanas
-    
-    # Opcional: eliminar los archivos GIF descargados
-    # rm -f "$DUCK_GIF" "$VICTORY_GIF"
     
     echo "CTF finalizado: $(date)" >> "$LOG_FILE"
 }
@@ -285,12 +286,16 @@ trap 'echo "Programa interrumpido"; limpiar; exit 1' SIGINT SIGTERM
 main() {
     setup
     crear_archivo_oculto
-    descargar_gifs
-    abrir_ventana
-    monitorear_ventana
-    solicitar_comida
+    if descargar_gifs; then
+        abrir_ventana
+        monitorear_ventana
+        solicitar_comida
+    else
+        echo "Error al preparar los recursos. El CTF no puede continuar." | tee -a "$LOG_FILE"
+    fi
     limpiar
 }
 
 # Ejecutar el programa principal
 main
+
