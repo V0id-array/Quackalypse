@@ -358,12 +358,17 @@ limpiar() {
     done
     
     # Intentar cerrar programas específicos que podrían estar abiertos
-    for prog in firefox mpv gimp; do
+    for prog in firefox mpv gwenview; do
         if pgrep $prog > /dev/null; then
             pkill $prog 2>/dev/null
             echo "Intentando cerrar $prog" >> "$LOG_FILE"
         fi
     done
+    
+    if [ -d "$TEMP_DIR" ]; then
+        echo "Eliminando directorio temporal: $TEMP_DIR" >> "$LOG_FILE"
+        rm -rf "$TEMP_DIR"
+    fi
     
     echo "CTF finalizado: $(date)" >> "$LOG_FILE"
 }
