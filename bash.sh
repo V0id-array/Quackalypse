@@ -5,7 +5,7 @@
 #=============================================
 
 # Emojis de comida que se guardarán en el archivo oculto
-FOOD_EMOJIS="🫛 🫛 🫛 🫛 🫛"
+FOOD_EMOJIS="🫛🫛🫛🫛🫛"
 
 # Variables para rutas y comandos
 DESKTOP_PATH="/tmp"
