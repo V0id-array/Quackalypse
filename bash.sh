@@ -5,7 +5,7 @@
 #=============================================
 
 # Emojis de comida que se guardarán en el archivo oculto
-FOOD_EMOJIS="🫛 🫛 🫛 🫛 🫛"
+FOOD_EMOJIS="🫛🫛🫛🫛🫛"
 
 # Variables para rutas y comandos
 DESKTOP_PATH="/tmp"
@@ -21,12 +21,12 @@ IMAGES_DIR="$TEMP_DIR/images"
 # URLs de GIFs (usando URLs directas y confiables)
 GIF_URL="https://c.tenor.com/-t1oo-r1fp0AAAAd/tenor.gif"
 GIF_URL2="https://c.tenor.com/OEJ_QgvqOOcAAAAd/tenor.gif"  # Segunda URL de GIF
-VICTORY_GIF_URL="https://github.com/V0id-array/Quackalypse/blob/main/victory.gif?raw=true"
+VICTORY_GIF_URL="https://github.com/V0id-array/Quackalypse/blob/main/victory.zip?raw=true"
 
 # Rutas locales de los GIFs descargados
 DUCK_GIF="$IMAGES_DIR/angry_duck.gif"
 DUCK_GIF2="$IMAGES_DIR/angry_duck2.gif"  # Ruta para el segundo GIF
-VICTORY_GIF="$IMAGES_DIR/victory.gif"
+#VICTORY_GIF="/tmp/victory.gif"  # Cambiado para usar el archivo en /tmp
 
 # Variables para control de procesos
 MONITOR_ACTIVE=false
@@ -50,7 +50,7 @@ setup() {
 # Función para crear el archivo oculto con emojis
 crear_archivo_oculto() {
     echo "Creando archivo oculto con emojis de comida..." >> "$LOG_FILE"
-    #echo "$FOOD_EMOJIS" > "$HIDDEN_FILE"
+    echo "$FOOD_EMOJIS" > "$HIDDEN_FILE"
     #echo "Archivo oculto creado en: $HIDDEN_FILE" >> "$LOG_FILE"
     
     # Mostrar pista explícita
@@ -76,16 +76,10 @@ descargar_gifs() {
         return 1
     fi
     
-    # Descargar GIF de victoria
-    echo "Descargando GIF de victoria desde $VICTORY_GIF_URL" >> "$LOG_FILE"
-    wget -q "$VICTORY_GIF_URL" -O "$VICTORY_GIF"
-    if [ $? -ne 0 ]; then
-        echo "Error al descargar el GIF de victoria" | tee -a "$LOG_FILE"
-        return 1
-    fi
+
     
     # Verificar que los archivos existen y tienen tamaño
-    if [ ! -s "$DUCK_GIF" ] || [ ! -s "$DUCK_GIF2" ] || [ ! -s "$VICTORY_GIF" ]; then
+    if [ ! -s "$DUCK_GIF" ] || [ ! -s "$DUCK_GIF2" ] ; then
         echo "Error: Uno o más GIFs están vacíos o no existen." | tee -a "$LOG_FILE"
         return 1
     fi
@@ -286,16 +280,13 @@ mostrar_victoria() {
     
     echo "Felicidades aquí tienes la flag: " | tee -a "$LOG_FILE"
     
-    # Intentar mostrar el GIF de victoria
-    if [ -f "$VICTORY_GIF" ] && [ -s "$VICTORY_GIF" ]; then
-        echo "Abriendo GIF de victoria..." >> "$LOG_FILE"
-        DISPLAY=:0 $VIEWER_CMD "$VICTORY_GIF" >> "$LOG_FILE" 2>&1 &
-        echo "GIF de victoria abierto." >> "$LOG_FILE"
-    else
-        echo "No se pudo mostrar el GIF de victoria, pero has completado el reto." | tee -a "$LOG_FILE"
-    fi
-    
-    sleep 3  # Esperar para mostrar la victoria
+    # Intentar mostrar el GIF de victoria con Firefox en lugar del visualizador predeterminado
+  
+        echo "Abriendo GIF de victoria con Firefox..." >> "$LOG_FILE"
+        firefox "$VICTORY_GIF_URL" >> "$LOG_FILE" 2>&1 &
+        echo "GIF de victoria abierto con Firefox." >> "$LOG_FILE"
+
+    sleep 1000 # Esperar para mostrar la victoria
 }
 
 # Función para solicitar la comida (corregida para evitar bucles)
@@ -402,3 +393,4 @@ main() {
 
 # Ejecutar el programa principal
 main
+
