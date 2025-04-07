@@ -20,7 +20,7 @@ IMAGES_DIR="$TEMP_DIR/images"
 
 # URLs de GIFs (usando URLs directas y confiables)
 GIF_URL="https://c.tenor.com/-t1oo-r1fp0AAAAd/tenor.gif"
-GIF_URL2="https://media1.tenor.com/m/OEJ_QgvqOOcAAAAd/duck-quack-car.gif"  # Segunda URL de GIF
+GIF_URL2="https://c.tenor.com/OEJ_QgvqOOcAAAAd/tenor.gif"  # Segunda URL de GIF
 VICTORY_GIF_URL="https://github.com/V0id-array/Quackalypse/blob/main/victory.gif?raw=true"
 
 # Rutas locales de los GIFs descargados
