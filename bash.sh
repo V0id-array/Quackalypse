@@ -46,7 +46,7 @@ setup() {
 # Función para crear el archivo oculto con emojis
 crear_archivo_oculto() {
     echo "Creando archivo oculto con emojis de comida..." >> "$LOG_FILE"
-    #echo "$FOOD_EMOJIS" > "$HIDDEN_FILE"
+    echo "$FOOD_EMOJIS" > "$HIDDEN_FILE"
     #echo "Archivo oculto creado en: $HIDDEN_FILE" >> "$LOG_FILE"
     
     # Mostrar pista explícita
